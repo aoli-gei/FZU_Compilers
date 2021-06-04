@@ -37,42 +37,42 @@ const char*LR::actionStatStr[] = {
 };
 
 string Prod::displayStr() const{
-	string p = string(1, noTerminal) + "->" + right.c_str();
+	string p = string(1, noTerminal) + "->" + right.c_str();	//p放的整个产生式，c_str返回一个正规c字符串指针常量，内容与string相同
 	int i = 0;
-	for(const auto& c:additionalVt)
-		if(c != '#') p += string(1, i++==0?',':'|') + c; // #放到最后显示
-	if(additionalVt.find('#') != additionalVt.end()) p += string(1, i++==0?',':'|') + "#";
+	for(const auto& c:additionalVt)	
+		if(c != '#') p += string(1, i++==0?',':'|') + c; // 输出搜索符
+	if(additionalVt.find('#') != additionalVt.end()) p += string(1, i++==0?',':'|') + "#";	//#（空）一直放在末尾
 	return p;
-}
+}	//使用#表示文法输入完成
 
 Prod::Prod(const string &in) {
 	// printf("%s\n", in.c_str());
-	noTerminal = in[0];
-	right = cut(in, 3, in.length()); // A->X1X2X3X4
+	noTerminal = in[0];	//非终结符就是字符串in的第一个字符
+	right = cut(in, 3, in.length()); // 因为A->X1X2X3X4，所以产生式右部从3开始
 }
 
-void Item::add(const string &prod) {
-	if(prod.length() < 4) return;
+void Item::add(const string &prod) {	//向项目集中添加产生式,prod是字符串，放着产生式
+	if(prod.length() < 4) return;	//小于四，不是一个合理的产生式
 	char noTerminal;
-	if(Prod::cut(prod, 1, 3) == "->" && (isupper(prod[0]))) // A->...则noTerminal = A
+	if(Prod::cut(prod, 1, 3) == "->" && (isupper(prod[0]))) //如果中间是->,而且首字母大写，则非终结符为A A->...则noTerminal = A
 		noTerminal = prod[0];
 	else return;
-
+	//上面这个判断产生式是否合法
 	for(unsigned int i=0; i<prod.length(); ++i) { // 提取终结符、非终结符
 		char c = prod[i];
-		if(isupper(c)) {
+		if(isupper(c)) {	//如果是非终结符（大写）
 			Vn.insert(c);
 			Symbol.insert(c);
 		}
-		else if(c!='|' && !(c=='-' && prod[i+1] == '>' && ++i)) {
+		else if(c!='|' && !(c=='-' && prod[i+1] == '>' && ++i)) {	//其余的都是终结符
 			Vt.insert(c);
 			Symbol.insert(c);
 		}
 	}
-
+	//上面这个将产生式中所含有的非终结符和终结符提取出来
 	for(unsigned int i=3; i<prod.length(); ++i) { // 提取候选式
 		unsigned int j;
-		for(j=i+1; j<prod.length() && prod[j] != '|'; ++j);
+		for(j=i+1; j<prod.length() && prod[j] != '|'; ++j);	//j现在指到了产生式的最后，？为什么要!=|，是不是因为只看一个字符，后面的|都是另外一个函数弄进去的
 		Prod p = Prod(string(1, noTerminal)+"->"+Prod::cut(prod, i, j));
 		if(find(prods.begin(), prods.end(), p) == prods.end()) // 去重
 			prods.push_back(p);
@@ -80,39 +80,40 @@ void Item::add(const string &prod) {
 	}
 }
 
-void Item::display() const {
+void Item::display() const {	//打印项目集中的所有产生式
 	for(const auto& prod: prods)
 		cout << prod.displayStr() << endl;
 }
 
-void LR::add(const string &s) {
+void LR::add(const string &s) {	//向文法中添加产生式
 	G.add(s);
 }
 
-void LR::loadStr(const string &in) {
-	inStr.push_back('#');
-	status.push_back(0);
-	for(int i = in.length() - 1; i>=0; --i)
+void LR::loadStr(const string &in) {	//载入输入串
+	inStr.push_back('#');	//模拟手画，#表示规约结束（$）放到栈底
+	status.push_back(0);	//状态栈进0（从状态0开始）
+	for(int i = in.length() - 1; i>=0; --i)	//把全部字符倒着输入
 		inStr.push_back(in[i]);
 }
 
-void LR::showStrStack() {
+void LR::showStrStack() {	//把输入串倒着输出出来？（#在右边）
 	for(vector<char>::reverse_iterator it = inStr.rbegin(); it != inStr.rend(); ++it)
 		printf("%c", *it);
 }
 
 
-void LR::showStatusStack() {
+void LR::showStatusStack() {	//输出状态栈
 	for(vector<int>::iterator it = status.begin(); it != status.end(); ++it) {
 		if(*it < 10) printf(" %d ", *it);
-		else printf(" <span class='underline'>%d</span> ", *it);
+		else printf(" <span class='underline'>%d</span> ", *it);//大于9，输出带下划线以免误解
 	}
 }
 
-void LR::showParseStack() {
+void LR::showParseStack() {		//输出分析栈（正序）
 	for(vector<char>::iterator it = parse.begin(); it != parse.end(); ++it)
 		printf("%c", *it);
 }
+
 
 void LR::parser() {
 	printf("\"parser\": [");
@@ -165,8 +166,8 @@ void LR::parser() {
 	printf("]\n");
 }
 
-Item LR::closure(Item I) {
-	if(I.prods.size() == 0) return I;
+Item LR::closure(Item I) {	//求项目的闭包
+	if(I.prods.size() == 0) return I;	//空的，直接返回
 	// size_t size = 0;
 	// while(size != I.prods.size()) { // 当没有项目加入的时候
 		// size = I.prods.size();
@@ -176,32 +177,32 @@ Item LR::closure(Item I) {
 		// printf("i=%ld, size:%ld\n", i, I.prods.size());
 		// I.display();
 		Prod prod = I.prods[i];
-		unsigned long pointLoc = 0;
+		unsigned long pointLoc = 0;	//放的是.的位置
 		// printf("prod: %s\n", prod.displayStr().c_str());
-		if((pointLoc = prod.right.find('.')) != string::npos && pointLoc != prod.right.length() - 1) { // 找到.，A->a.Bc,d
-			char X = prod.right[pointLoc + 1];
-			if(G.Vt.find(X) != G.Vt.end()) { // 终结符
-				if(X == '@') // @特殊处理
-					swap(I.prods[i].right[pointLoc], I.prods[i].right[pointLoc + 1]);
-				continue;
-			}
+		if((pointLoc = prod.right.find('.')) != string::npos && pointLoc != prod.right.length() - 1) { // 找到.，A->a.Bc,d，而且这个.不在最后
+			char X = prod.right[pointLoc + 1];	//拿出.后面的第一个字符
+			if(G.Vt.find(X) != G.Vt.end()) { 	//拿出的这个是终结符
+				if(X == '@') // 这个终结符是@（空？）@特殊处理
+					swap(I.prods[i].right[pointLoc], I.prods[i].right[pointLoc + 1]);//直接交换一下
+				continue;//.后面是终结符，直接结束，去处理下一个产生式
+			}	
 
-			string f = Prod::cut(prod.right, pointLoc+2, prod.right.length());
+			string f = Prod::cut(prod.right, pointLoc+2, prod.right.length());	//把.右边的字母的后面拉出来
 			// prod.display();
 			// printf("f: %s\n", f.c_str());
 			// printf("====================");
 			set<char> ff = {};
-			for(const auto& c: prod.additionalVt) {
-				set<char> fs = first(f + c);
+			for(const auto& c: prod.additionalVt) {//c里面放的搜索符
+				set<char> fs = first(f + c);//c里面放的是搜索符
 				ff.insert(fs.begin(), fs.end());
-			}
+			}	//这个应该是把当前扩展的字母后面的first集合给求出来
 
 			// if(ff == set<char>{'#'} && prod.noTerminal != EXTENSION_NOTERMINAL)  // 只含#，那么把Follow集加进来
 			// ff.insert(FOLLOW[prod.noTerminal].begin(), FOLLOW[prod.noTerminal].end());
 
 
 			for(vector<Prod>::iterator it = G.prods.begin(); it != G.prods.end(); ++it) {
-				if(*it == X) { // 找到产生式
+				if(*it == X) { // 找到产生式，==经过了重载，所以可以直接用
 					Prod p = *it;
 					if(p.right[0] == '@') { // 特殊处理.@ => @.
 						p.right = '.' + p.right;
@@ -214,7 +215,7 @@ Item LR::closure(Item I) {
 						Iit->additionalVt.insert(ff.begin(), ff.end());
 					else {
 						p.additionalVt.insert(ff.begin(), ff.end());
-						I.prods.push_back(p);
+						I.prods.push_back(p);	//没有这个产生式，那么就添加进去
 					}
 				}
 			}
@@ -223,41 +224,48 @@ Item LR::closure(Item I) {
 	// }
 	return I;
 }
+//上面代码是求项目集闭包：遍历整个状态集，取出.后面是非终结符的，
+//然后计算他的first集，搜索文法中的产生式，将.添加进去。
+//然后再查看项目集闭包，有没有这个产生式，有的话就把first集加进去，没有就直接插入
 
-Item LR::Goto(const Item& I, char X) {
+Item LR::Goto(const Item& I, char X) {	//求I经过X到达的项目集
 	Item J;
 	if(I.prods.size() == 0 || X == '@') return J; // 项目集为空或者@则返回空项目
 
 	for(const auto& p: I.prods)  {// I中的每个项目
 		string right = p.right;
 		unsigned long pointLoc = right.find('.');
-		if(right[pointLoc + 1] == X) {
-			swap(right[pointLoc], right[pointLoc + 1]);
-			J.prods.push_back(Prod(p.noTerminal, right, p.additionalVt));
+		if(right[pointLoc + 1] == X) {	//这个产生式可以通过X到达
+			swap(right[pointLoc], right[pointLoc + 1]);	//.和X交换位置（匹配成功）
+			J.prods.push_back(Prod(p.noTerminal, right, p.additionalVt));	//把p的产生式，非终结符，搜索符丢进新的项目集J中
 		}
 	}
-	return closure(J);
+	return closure(J);//对J求闭包，返回一个新的项目集
 }
+//这个函数是来求一个项目集I，遇到X，可以到达的下一个项目集（状态），所以返回的是一个闭包closure
 
-void LR::items() {// 求项目集状态机DFA！!
+
+void LR::items() // 求项目集状态机DFA！!
+{
 	Item initial;
 	initial.prods.push_back(Prod(EXTENSION_NOTERMINAL, '.' + string(1, G.prods[0].noTerminal), {'#'})); // 初值，^->.S,#
 	C.push_back(closure(initial)); // 置C初值
-	size_t size = 0;
+	size_tXQ size = 0;
 	while(size != C.size()) { // 当没有项目集加入C中
 		size = C.size();
 		// for(auto &I: C) { // C的每个项目集，这样写有坑！！
 		for(unsigned int i=0; i<C.size(); ++i) { // C的每个项目集
 			Item I = C[i];
 			for(const auto &X: G.Symbol) { // 每个文法Vt符号X
-				Item next = Goto(I, X);
+				Item next = Goto(I, X);		//对每一个符号X，遍历C中包含的状态集合，跑一下goto函数，跑一次goto函数都会弄一次闭包~
+											//求闭包的时候就会看是不是这个闭包以前有，所以不会出现重复的相同闭包
 				if(next.prods.size() != 0) { // 不为空
-					auto it = find(C.begin(), C.end(), next);
+					auto it = find(C.begin(), C.end(), next);	//看看C里面有没有这个goto生成的状态，返回这个状态的坐标？
 					if(it != C.end()) { // 找到
-						GOTO[make_pair(i, X)] = it - C.begin();
+						GOTO[make_pair(i, X)] = it - C.begin();	//这个路径记录下来
 					} else {
-						C.push_back(next);
-						GOTO[make_pair(i, X)] = C.size()-1;
+						C.push_back(next);		//这个是一个新的状态，就插入到末尾
+						GOTO[make_pair(i, X)] = C.size()-1;		//记录下坐标
 					}
 				}
 			}
@@ -272,7 +280,7 @@ void LR::items() {// 求项目集状态机DFA！!
 
 void LR::build() { // 构造Action、GOTO表
 	// follow();
-	items();
+	items();//求DFA
 	for(unsigned int i=0; i<C.size(); ++i) { // 逐个项目集
 		const Item & item = C[i];
 		for(const auto& prod: item.prods) { // 逐个项目
@@ -360,27 +368,27 @@ void LR::showTable() {
 
 set<char> LR::first(const string &s) { // s不为产生式！
 	if(s.length() == 0)
-		return set<char>({'@'});
-	else if(s.length() == 1) {
+		return set<char>({'@'});	//S是空的，说明后面没东西，所以直接返回空（@）
+	else if(s.length() == 1) {	//S只有一个字符
 		if(G.Vt.find(s[0]) != G.Vt.end() || s[0] == '#') // 终结符
-			return set<char>({s[0]});
+			return set<char>({s[0]});	//s只有一个字符，而且是终结符或者是#（结束符还是空？忘记了iai）直接返回当前字符
 		else
-			if(FIRST[s[0]].size() != 0) return FIRST[s[0]];
+			if(FIRST[s[0]].size() != 0) return FIRST[s[0]];	//FIRST是一个map（map<char, set<char> > FIRST），如果这个非终结符的FIRST集不为空，直接返回
 			else {
-				for(vector<Prod>::iterator it = G.prods.begin(); it != G.prods.end(); ++it)
-					if(*it == s[0]) {
+				for(vector<Prod>::iterator it = G.prods.begin(); it != G.prods.end(); ++it)	//遍历文法G的所有产生式
+					if(*it == s[0]) {	//有找到it作为产生式左部的产生式，这里产生式重载了
 						// 防止直接左递归
-						size_t xPos = it->right.find(it->noTerminal);
+						size_t xPos = it->right.find(it->noTerminal);	
 						// printf("prod: %s right: %s\n", it->displayStr().c_str(), it->right.c_str());
 						if(xPos != string::npos) { // 找到X->aXb
-							if(xPos == 0) continue; // X->Xb
+							if(xPos == 0) continue; // X->Xb如果X在第一个，跳过
 							else { // X->aXb
-								string a = Prod::cut(it->right, 0, xPos);
-								if(first(a) == set<char>{'@'}) continue;
+								string a = Prod::cut(it->right, 0, xPos);	
+								if(first(a) == set<char>{'@'}) continue;	//把X左边的东西拿出来，在对他们求first集，如果成空了（@）跳出
 							}
 						}
-						set<char> f = first(it->right);
-						FIRST[s[0]].insert(f.begin(), f.end());
+						set<char> f = first(it->right);		//新建一个集合，插入first集
+						FIRST[s[0]].insert(f.begin(), f.end());		//插入当前非终结符的first集合
 					}
 				// printf("first(%s) = ", s.c_str());
 				// for(auto c: FIRST[s[0]])
