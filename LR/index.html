@@ -32,7 +32,7 @@
 
 		tbody {
 			display: block;
-			max-height: 550px;
+			max-height: 1000px;
 			overflow-y: scroll;
 		}
 
@@ -45,14 +45,14 @@
 
 <body>
 
-	<a href="https://github.com/netcan/compilingTheory" target="_blank">
+	<a href="https://github.com/aoli-gei/FZU_Compilers" target="_blank">
 		<img style="position: fixed; top: 0; right: 0; border: 0; z-index: 901" src="../fork.png"
 			alt="Fork me on GitHub"
 			data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png">
 	</a>
 
 	<div class="ui container">
-		<h1 class="header">LR(1) parser by netcan</h1>
+		<h1 class="header">LR(1) parser </h1>
 
 		<!-- DFA图 -->
 		<div class="ui stacked segment" id="DFA" style="overflow-x: scroll;">
@@ -92,11 +92,11 @@
 							<textarea id="indata"></textarea>
 							<!-- <input type="text" id="indata"> -->
 						</div>
-						<div class="field">
+						<!-- <div class="field">
 							<label for="regex_indata">修改后输入串</label>
 							<input type="text" id="regex_indata">
-						</div>
-						<div class="field">
+						</div> -->
+						<div class="field" style="visibility:hidden;max-height:0px">
 							<label for="grammar">输入文法</label>
 							<textarea id="grammar"></textarea>
 						</div>
@@ -143,7 +143,7 @@
 								<tr id="pth2" class="center aligned">
 								</tr>
 							</thead>
-							<tbody id="ptb">
+							<tbody id="ptb" style="max-height:1200px">
 							</tbody>
 						</table>
 					</div>
@@ -328,7 +328,7 @@
 					}
 				},
 				error: function () {
-					$('.errorMsg').html('请检查文法是否合法，否则请联系我！谢谢合作。');
+					$('.errorMsg').html('请检查文法是否合法');
 					$('.ui.dimmer').dimmer('show');
 				}
 			});
@@ -351,11 +351,40 @@
 		});
 
 		$(document).ready(function () {
-			var inStr = ["i*i+i*(i+i)*i-i+i/(i*i)*i",
-				"i+i*i",
-				"a*(a+a*a)",
-				"aaaabbbbaaaabbbb",
-				"aaaabbbbaaaabbbb"
+			var inStr = ["program test (b);\n" +
+				"begin \n" +
+				"	x:=1;\n" +
+				"	z:=0;\n" +
+				"	if x<2 then z:=x\n" +
+				"end.\n",
+			"program test (a,b);\n" +
+			"begin \n" +
+			"	x:=11;\n" +
+			"	z:=0;\n" +
+			"	if x<y then y:=x\n" +
+			"	else begin\n" +
+			"		while x+y<x do y:=y+1; \n" +
+			"		z:=z+2\n" +
+			"	end\n" +
+			"end.\n",
+			"program test(a,b);\n" +
+			"begin\n" +
+			"x:=19;\n" +
+			"if x<y then y:=x\n" +
+			"else begin\n" +
+			"while x+y>x do begin y:=y-1; end;\n" +
+			"z:=z*7\n" +
+			"end\n" +
+			"end.\n",
+			"program test(a,b);\n" +
+			"begin\n" +
+			"x:=19;\n" +
+			"if x<y then y:=x\n" +
+			"else begin\n" +
+			"while x+y>x do begin y:=y-1; end\n" +
+			"z:=z*7\n" +
+			"end\n" +
+			"end.\n",
 			];
 			var grammar = [
 				"S->pa(B);Cz\n" +
@@ -370,32 +399,45 @@
 				"J->a|j\n",
 
 
-				"E->TG\n" +
-				"G->+TG|-TG\n" +
-				"G->@\n" +
-				"T->FS\n" +
-				"S->*FS|/FS\n" +
-				"S->@\n" +
-				"F->(E)\n" +
-				"F->i",
+				"S->pa(B);Cz\n" +
+				"B->a|B,a\n" +
+				"C->bDc\n" +
+				"D->E\n" +
+				"E->E;F|F\n" +
+				"F->adG|C|eHfF|eHfFgF|hHiF|@\n" +
+				"H->G>G|G<G\n" +
+				"G->G+I|G-I|I\n" +
+				"I->I*J|I/J|J\n" +
+				"J->a|j\n",
 
-				"E->E+T\n" +
-				"E->T\n" +
-				"T->T*F\n" +
-				"T->F\n" +
-				"F->(E)\n" +
-				"F->i",
 
-				"E->E+E|E*E|(E)|a",
+				"S->pa(B);Cz\n" +
+				"B->a|B,a\n" +
+				"C->bDc\n" +
+				"D->E\n" +
+				"E->E;F|F\n" +
+				"F->adG|C|eHfF|eHfFgF|hHiF|@\n" +
+				"H->G>G|G<G\n" +
+				"G->G+I|G-I|I\n" +
+				"I->I*J|I/J|J\n" +
+				"J->a|j\n",
 
-				"S->aBS|bAS|@\n" +
-				"A->bAA|a\n" +
-				"B->aBB|b\n"
+				"S->pa(B);Cz\n" +
+				"B->a|B,a\n" +
+				"C->bDc\n" +
+				"D->E\n" +
+				"E->E;F|F\n" +
+				"F->adG|C|eHfF|eHfFgF|hHiF|@\n" +
+				"H->G>G|G<G\n" +
+				"G->G+I|G-I|I\n" +
+				"I->I*J|I/J|J\n" +
+				"J->a|j\n"
+
 			];
 
 			var opt = '';
 			for (var i = 0, len = grammar.length; i < len; ++i)
-				opt += "<option value=" + i + ">" + "文法" + i + "</option>";
+				opt += "<option value=" + i + ">" + "输入串" + (i + 1) + "</option>";
 			$('#selectGrammar').html(opt);
 			{ // 初始化文法
 				$('#selectGrammar').val(0);
