@@ -1,0 +1,417 @@
+<html>
+
+
+<head>
+	<meta charset="utf-8">
+	<title>LR(1) parser </title>
+	<script src="../node_modules/jquery/dist/jquery.min.js"></script>
+	<link href="../node_modules/semantic-ui-css/semantic.min.css" rel="stylesheet">
+
+	<style>
+		.node-name {
+			font-weight: bolder;
+		}
+
+		.underline {
+			text-decoration: underline;
+		}
+
+		.container__table {
+			width: 3500px;
+			/* overflow-x: scroll; */
+			/* or auto */
+		}
+
+		thead,
+		tbody tr {
+			display: table;
+			width: 100%;
+			table-layout: fixed;
+			/* even columns width , fix width of table too*/
+		}
+
+		tbody {
+			display: block;
+			max-height: 550px;
+			overflow-y: scroll;
+		}
+
+		thead {
+			width: calc(100% - 1em)
+				/* scrollbar is average 1em/16px width, remove it from thead width */
+		}
+	</style>
+</head>
+
+<body>
+
+	<a href="https://github.com/netcan/compilingTheory" target="_blank">
+		<img style="position: fixed; top: 0; right: 0; border: 0; z-index: 901" src="../fork.png"
+			alt="Fork me on GitHub"
+			data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png">
+	</a>
+
+	<div class="ui container">
+		<h1 class="header">LR(1) parser by netcan</h1>
+
+		<!-- DFA图 -->
+		<div class="ui stacked segment" id="DFA" style="overflow-x: scroll;">
+			<h4 class="ui horizontal divider header">
+				DFA Graph
+			</h4>
+			<div class="ui inverted dimmer">
+				<div class="ui text loader errorMsg"></div>
+			</div>
+			<div class="huge ui buttons fluid">
+				<button class="ui button" id="graphButton">
+					Open DFA Graph on new window
+				</button>
+				<div class="or"></div>
+				<button class="ui positive button" id="graphDownload">
+					Download DFA Graph
+				</button>
+			</div>
+			<div id="GraphAll" style="display:none">
+			</div>
+			<div id="Graph">
+			</div>
+		</div>
+
+		<div class="ui two column doubling stackable grid">
+			<!-- 输入串，文法 -->
+			<div class="four wide column">
+				<div class="ui stacked segment">
+					<div class="ui form">
+						<div class="field">
+							<label for="selectGrammar">测试文法</label>
+							<select class="ui dropdown fluid" id="selectGrammar">
+							</select>
+						</div>
+						<div class="field">
+							<label for="indata">输入串</label>
+							<textarea id="indata"></textarea>
+							<!-- <input type="text" id="indata"> -->
+						</div>
+						<div class="field">
+							<label for="regex_indata">修改后输入串</label>
+							<input type="text" id="regex_indata">
+						</div>
+						<div class="field">
+							<label for="grammar">输入文法</label>
+							<textarea id="grammar"></textarea>
+						</div>
+					</div>
+				</div>
+
+				<!-- 文法列表 -->
+				<div class="row">
+					<div class="ui piled segment">
+						<h4 class="ui horizontal divider header">
+							Grammar List
+						</h4>
+						<div class="ui inverted dimmer">
+							<div class="ui text loader errorMsg"></div>
+						</div>
+						<table class="ui selectable striped celled structured table">
+							<thead>
+								<tr class="center aligned">
+									<th class="three wide">ID</th>
+									<th>Production</th>
+								</tr>
+							</thead>
+							<tbody id="gmrb">
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+			<div class="twelve wide column" style="overflow-x:scroll;">
+				<!-- LR分析表 -->
+				<div class="container__table" id="parseTable">
+					<div class="ui piled segment">
+						<h4 class="ui horizontal divider header">
+							Parse Table
+						</h4>
+						<div class="ui inverted dimmer">
+							<div class="ui text loader errorMsg"></div>
+						</div>
+						<table class="ui selectable striped celled structured table">
+							<thead>
+								<tr id="pth1" class="center aligned">
+								</tr>
+								<tr id="pth2" class="center aligned">
+								</tr>
+							</thead>
+							<tbody id="ptb">
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+			</div>
+			<div class="row" style="overflow-x:scroll;">
+				<!-- 分析过程 -->
+				<div>
+					<div class="container__table">
+						<h4 class="ui horizontal divider header">
+							Parser
+						</h4>
+						<div class="ui inverted dimmer">
+							<div class="ui text loader errorMsg"></div>
+						</div>
+						<table class="ui stackable striped selectable celled table">
+							<thead>
+								<tr class="center aligned">
+									<th class="one wide">Step</th>
+									<th>statusStack</th>
+									<th>parseStack</th>
+									<th>inStrStack</th>
+									<th>action</th>
+								</tr>
+							</thead>
+							<tbody id="parser">
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+			</div>
+		</div>
+	</div>
+	<script src="../node_modules/semantic-ui-css/semantic.min.js"></script>
+	<script src="../node_modules/file-saver/FileSaver.min.js"></script>
+	<script src="../node_modules/viz.js/viz.js"></script>
+	<script>
+		var replace_str = ["B", "C", "D", "E", "F", "G", "H", "I", "J", "a", "z", "b", "c", "d", "e", "f", "g", "h", "i", "p", "j", "<", ">", "#"];
+		var replace_to = ["id_lists", "compound_stmt", "optional_stmts", "stmts", "stmt", "expr", "bool", "term", "factor", "id", ".", "begin", "end", ":=", "if", "then", "else", "while", "do", "program", "num", "&lt;", "&gt;", "$"
+		];
+		const replaceStr2 = (str, index, String) => {
+			return str.substring(0, index) + String + str.substring(index + 1);
+		}
+
+		function change_back(para) {
+			for (var j = 0, len = para.length; j < len; ++j) {
+				for (var k = 0, len = replace_str.length; k < len; ++k) {
+					if (para[j] == replace_str[k]) {
+						para = replaceStr2(para, j, replace_to[k]);
+						j += replace_to[k].length - 1;
+						break;
+					}
+				}
+				len = para.length;
+			}
+			return para;
+		}
+		function update(local) {
+
+			str1 = String($('#indata').val())
+			var uw = str1.replace(/[A-Za-z]+/g, function (word) {
+				console.log(word);
+				if (word == "program") {
+					return "p";
+				} else if (word == "begin") {
+					return "b";
+				} else if (word == "end") {
+					return 'c';
+				}
+				else if (word == "if") {
+					return "e";
+				} else if (word == "then") {
+					return "f";
+				} else if (word == "else") {
+					return "g";
+				} else if (word == "while") {
+					return "h";
+				} else if (word == "do") {
+					return "i";
+				} else if (word = "id") {
+					return "a";
+				} else if (word = 'num') {
+					return "j";
+				}
+				return "a";
+			}
+			);
+			uw = uw.replace(/\s|[\r\n]/g, "");
+			console.log(uw);
+			uw = uw.replace(/:=/g, "d");
+			console.log(uw);
+			uw = uw.replace(/\d+(\.\d+)?/g, "j");
+			console.log(uw);
+			uw = uw.replace(/\./g, 'z');
+			$('#regex_indata').val(uw);
+			// var data = $('#grammar').val() + '\n#\n' + $('#indata').val();
+			var data = $('#grammar').val() + '\n#\n' + uw;
+			$.ajax({
+				url: "LR.php",
+				datatype: "json",
+				method: "POST",
+				data: { "data": data },
+				success: function (res, status, jqxhr) {
+					$('.ui.dimmer').dimmer('hide');
+					console.log(res);
+					if (!local) {
+						// Gammar list
+						var gmrb = '';
+						for (var i = 0, len = res["Grammar"].length; i < len; ++i) {
+							res["Grammar"][i] = change_back(res["Grammar"][i]);
+							gmrb += '<tr class="center aligned">' +
+								'<td class="three wide">' + i + '</td>' +
+								'<td>' + res["Grammar"][i] + '</td>';
+						}
+						$('#gmrb').html(gmrb);
+
+						// parse Table
+						var pth1 = '<th rowspan="2">Status</th>' +
+							'<th colspan=' + res["parseTable"]["Vt"].length + '>ACTION</th>' +
+							'<th colspan=' + res["parseTable"]["Vn"].length + '>GOTO</th>';
+						var pth2 = '';
+						var ptb = '';
+						for (var i = 0, len = res["parseTable"]["Vt"].length; i < len; ++i) {
+							res["parseTable"]["Vt"][i] = change_back(res["parseTable"]["Vt"][i]);
+							pth2 += '<th>' + res["parseTable"]["Vt"][i] + '</th>'
+						}
+
+						for (var i = 0, len = res["parseTable"]["Vn"].length; i < len; ++i) {
+							res["parseTable"]["Vn"][i] = change_back(res["parseTable"]["Vn"][i]);
+							pth2 += '<th>' + res["parseTable"]["Vn"][i] + '</th>';
+						}
+
+
+
+						for (var i = 0, len = res["parseTable"]["Body"].length; i < len; ++i) {
+							ptb += '<tr class="center aligned"><td>' + i + '</td>'
+							var row = res["parseTable"]["Body"][i];
+							for (var j = 0, jlen = row.length; j < jlen; ++j) {
+								row[j] = change_back(row[j]);
+								ptb += '<td>' + row[j] + '</td>'
+							}
+
+							ptb += '</tr>';
+						}
+
+						$('#pth1').html(pth1);
+						$('#pth2').html(pth2);
+						$('#ptb').html(ptb);
+					}
+
+					// parser
+					var parser = '';
+					for (var i = 0, len = res["parser"].length; i < len; ++i) {
+						var row = res["parser"][i];
+						row["parseStack"] = change_back(row["parseStack"]);
+						row["inStrStack"] = change_back(row["inStrStack"]);
+						if (row["action"] != "SHIFT" || row["action"] != "ACCEPT") {
+							row["action"] = row["action"].substring(0, 7) + change_back(row["action"].substring(7))
+						}
+						parser += '<tr class="center aligned ' + (row["action"] == "ERROR" ? "negative" : "") + '">' +
+							'<td class="one wide">' + i + '</td>' +
+							'<td>' + row["statusStack"] + '</td>' +
+							'<td>' + row["parseStack"] + '</td>' +
+							'<td>' + row["inStrStack"] + '</td>' +
+							'<td>' + row["action"] + '</td>' +
+							'</tr>';
+					}
+					$('#parser').html(parser);
+
+					if (!local) {
+						// DFA Graph
+						// console.log(res['Graph']['Simple']);
+						// res['Graph']['Simple'] = change_back(res['Graph']['Simple']);
+						// console.log(res['Graph']['Simple']);
+						var GraphAll = Viz(res['Graph']['All'], { format: "svg" });
+						var GraphSimple = Viz(res['Graph']['Simple'], { format: "svg" });
+						$('#GraphAll').html(GraphAll);
+						$('#Graph').html(GraphSimple);
+						window.scrollTo(0, $('#DFA').height() + 35);
+					}
+				},
+				error: function () {
+					$('.errorMsg').html('请检查文法是否合法，否则请联系我！谢谢合作。');
+					$('.ui.dimmer').dimmer('show');
+				}
+			});
+		}
+
+		$("#indata").on("keyup paste", function () {
+			update(true);
+		});
+		$("#grammar").on("keyup paste", function () {
+			update(false);
+		});
+		$('#graphButton').click(function () {
+			var gw = window.open("", "DFA Graph", "width=800,height=600,scrollbars=1");
+			gw.document.write($('#GraphAll').html());
+			// console.log($('#graphButton').val());
+		});
+		$('#graphDownload').click(function () {
+			var blob = new Blob([$('#GraphAll').html()], { type: "text/plain;charset=utf-8" });
+			saveAs(blob, "LR1_DFA_Graph.svg");
+		});
+
+		$(document).ready(function () {
+			var inStr = ["i*i+i*(i+i)*i-i+i/(i*i)*i",
+				"i+i*i",
+				"a*(a+a*a)",
+				"aaaabbbbaaaabbbb",
+				"aaaabbbbaaaabbbb"
+			];
+			var grammar = [
+				"S->pa(B);Cz\n" +
+				"B->a|B,a\n" +
+				"C->bDc\n" +
+				"D->E\n" +
+				"E->E;F|F\n" +
+				"F->adG|C|eHfF|eHfFgF|hHiF|@\n" +
+				"H->G>G|G<G\n" +
+				"G->G+I|G-I|I\n" +
+				"I->I*J|I/J|J\n" +
+				"J->a|j\n",
+
+
+				"E->TG\n" +
+				"G->+TG|-TG\n" +
+				"G->@\n" +
+				"T->FS\n" +
+				"S->*FS|/FS\n" +
+				"S->@\n" +
+				"F->(E)\n" +
+				"F->i",
+
+				"E->E+T\n" +
+				"E->T\n" +
+				"T->T*F\n" +
+				"T->F\n" +
+				"F->(E)\n" +
+				"F->i",
+
+				"E->E+E|E*E|(E)|a",
+
+				"S->aBS|bAS|@\n" +
+				"A->bAA|a\n" +
+				"B->aBB|b\n"
+			];
+
+			var opt = '';
+			for (var i = 0, len = grammar.length; i < len; ++i)
+				opt += "<option value=" + i + ">" + "文法" + i + "</option>";
+			$('#selectGrammar').html(opt);
+			{ // 初始化文法
+				$('#selectGrammar').val(0);
+				$('#indata').val(inStr[$('#selectGrammar').val()]);
+				$('#grammar').val(grammar[$('#selectGrammar').val()]);
+				update(false);
+			}
+
+			$('#selectGrammar').dropdown({ allowReselection: true });
+			$('#selectGrammar').on('change', function () {
+				$('#indata').val(inStr[$('#selectGrammar').val()]);
+				$('#grammar').val(grammar[$('#selectGrammar').val()]);
+				update(false);
+			});
+		});
+	</script>
+</body>
+
+</html>
